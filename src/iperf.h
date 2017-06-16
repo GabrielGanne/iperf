@@ -53,8 +53,8 @@ typedef uint64_t iperf_size_t;
 struct iperf_interval_results
 {
     iperf_size_t bytes_transferred; /* bytes transfered in this interval */
-    struct timeval interval_start_time;
-    struct timeval interval_end_time;
+    struct timespec interval_start_time;
+    struct timespec interval_end_time;
     float     interval_duration;
 
     /* for UDP */
@@ -100,9 +100,9 @@ struct iperf_stream_result
     int stream_sum_rtt;
     int stream_count_rtt;
     int stream_max_snd_cwnd;
-    struct timeval start_time;
-    struct timeval end_time;
-    struct timeval start_time_fixed;
+    struct timespec start_time;
+    struct timespec end_time;
+    struct timespec start_time_fixed;
     double sender_time;
     double receiver_time;
     TAILQ_HEAD(irlisthead, iperf_interval_results) interval_results;
@@ -317,7 +317,7 @@ struct iperf_test
 /* default settings */
 #define PORT 5201  /* default port to listen on (don't use the same port as iperf2) */
 #define uS_TO_NS 1000
-#define SEC_TO_US 1000000LL
+#define SEC_TO_NS 1000000000LL
 #define UDP_RATE (1024 * 1024) /* 1 Mbps */
 #define OMIT 0 /* seconds */
 #define DURATION 10 /* seconds */

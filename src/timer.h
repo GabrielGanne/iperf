@@ -49,16 +49,16 @@ extern TimerClientData JunkClientData;	/* for use when you don't care */
 ** the TimerClientData associated with the timer, and a timeval in case
 ** it wants to schedule another timer.
 */
-typedef void TimerProc( TimerClientData client_data, struct timeval* nowP );
+typedef void TimerProc( TimerClientData client_data, struct timespec* nowP );
 
 /* The Timer struct. */
 typedef struct TimerStruct
 {
     TimerProc* timer_proc;
     TimerClientData client_data;
-    int64_t usecs;
+    int64_t nsecs;
     int periodic;
-    struct timeval time;
+    struct timespec time;
     struct TimerStruct* prev;
     struct TimerStruct* next;
     int hash;
@@ -66,22 +66,22 @@ typedef struct TimerStruct
 
 /* Set up a timer, either periodic or one-shot. Returns (Timer*) 0 on errors. */
 extern Timer* tmr_create(
-    struct timeval* nowP, TimerProc* timer_proc, TimerClientData client_data,
+    struct timespec* nowP, TimerProc* timer_proc, TimerClientData client_data,
     int64_t usecs, int periodic );
 
 /* Returns a timeout indicating how long until the next timer triggers.  You
 ** can just put the call to this routine right in your select().  Returns
-** (struct timeval*) 0 if no timers are pending.
+** (struct timespec*) 0 if no timers are pending.
 */
-extern struct timeval* tmr_timeout( struct timeval* nowP ) /* __attribute__((hot)) */;
+extern struct timespec* tmr_timeout( struct timespec* nowP ) /* __attribute__((hot)) */;
 
 /* Run the list of timers. Your main program needs to call this every so often,
 ** or as indicated by tmr_timeout().
 */
-extern void tmr_run( struct timeval* nowP ) /* __attribute__((hot)) */;
+extern void tmr_run( struct timespec* nowP ) /* __attribute__((hot)) */;
 
 /* Reset the clock on a timer, to current time plus the original timeout. */
-extern void tmr_reset( struct timeval* nowP, Timer* timer );
+extern void tmr_reset( struct timespec* nowP, Timer* timer );
 
 /* Deschedule a timer.  Note that non-periodic timers are automatically
 ** descheduled when they run, so you don't have to call this on them.

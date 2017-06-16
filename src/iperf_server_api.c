@@ -290,7 +290,7 @@ iperf_test_reset(struct iperf_test *test)
 }
 
 static void
-server_timer_proc(TimerClientData client_data, struct timeval *nowP)
+server_timer_proc(TimerClientData client_data, struct timespec *nowP)
 {
     struct iperf_test *test = client_data.p;
     struct iperf_stream *sp;
@@ -310,7 +310,7 @@ server_timer_proc(TimerClientData client_data, struct timeval *nowP)
 }
 
 static void
-server_stats_timer_proc(TimerClientData client_data, struct timeval *nowP)
+server_stats_timer_proc(TimerClientData client_data, struct timespec *nowP)
 {
     struct iperf_test *test = client_data.p;
 
@@ -321,7 +321,7 @@ server_stats_timer_proc(TimerClientData client_data, struct timeval *nowP)
 }
 
 static void
-server_reporter_timer_proc(TimerClientData client_data, struct timeval *nowP)
+server_reporter_timer_proc(TimerClientData client_data, struct timespec *nowP)
 {
     struct iperf_test *test = client_data.p;
 
@@ -334,10 +334,10 @@ server_reporter_timer_proc(TimerClientData client_data, struct timeval *nowP)
 static int
 create_server_timers(struct iperf_test * test)
 {
-    struct timeval now;
+    struct timespec now;
     TimerClientData cd;
 
-    if (gettimeofday(&now, NULL) < 0) {
+    if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) {
 	i_errno = IEINITTEST;
 	return -1;
     }
@@ -345,7 +345,7 @@ create_server_timers(struct iperf_test * test)
     test->timer = test->stats_timer = test->reporter_timer = NULL;
     if (test->duration != 0 ) {
         test->done = 0;
-        test->timer = tmr_create(&now, server_timer_proc, cd, (test->duration + test->omit + 5) * SEC_TO_US, 0);
+        test->timer = tmr_create(&now, server_timer_proc, cd, (test->duration + test->omit + 5) * SEC_TO_NS, 0);
         if (test->timer == NULL) {
             i_errno = IEINITTEST;
             return -1;
@@ -354,14 +354,14 @@ create_server_timers(struct iperf_test * test)
 
     test->stats_timer = test->reporter_timer = NULL;
     if (test->stats_interval != 0) {
-        test->stats_timer = tmr_create(&now, server_stats_timer_proc, cd, test->stats_interval * SEC_TO_US, 1);
+        test->stats_timer = tmr_create(&now, server_stats_timer_proc, cd, test->stats_interval * SEC_TO_NS, 1);
         if (test->stats_timer == NULL) {
             i_errno = IEINITTEST;
             return -1;
 	}
     }
     if (test->reporter_interval != 0) {
-        test->reporter_timer = tmr_create(&now, server_reporter_timer_proc, cd, test->reporter_interval * SEC_TO_US, 1);
+        test->reporter_timer = tmr_create(&now, server_reporter_timer_proc, cd, test->reporter_interval * SEC_TO_NS, 1);
         if (test->reporter_timer == NULL) {
             i_errno = IEINITTEST;
             return -1;
@@ -371,7 +371,7 @@ create_server_timers(struct iperf_test * test)
 }
 
 static void
-server_omit_timer_proc(TimerClientData client_data, struct timeval *nowP)
+server_omit_timer_proc(TimerClientData client_data, struct timespec *nowP)
 {   
     struct iperf_test *test = client_data.p;
 
@@ -391,20 +391,20 @@ server_omit_timer_proc(TimerClientData client_data, struct timeval *nowP)
 static int
 create_server_omit_timer(struct iperf_test * test)
 {
-    struct timeval now;
+    struct timespec now;
     TimerClientData cd; 
 
     if (test->omit == 0) {
 	test->omit_timer = NULL;
 	test->omitting = 0;
     } else {
-	if (gettimeofday(&now, NULL) < 0) {
+	if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) {
 	    i_errno = IEINITTEST;
 	    return -1; 
 	}
 	test->omitting = 1;
 	cd.p = test;
-	test->omit_timer = tmr_create(&now, server_omit_timer_proc, cd, test->omit * SEC_TO_US, 0); 
+	test->omit_timer = tmr_create(&now, server_omit_timer_proc, cd, test->omit * SEC_TO_NS, 0); 
 	if (test->omit_timer == NULL) {
 	    i_errno = IEINITTEST;
 	    return -1;
@@ -455,8 +455,8 @@ iperf_run_server(struct iperf_test *test)
     int result, s, streams_accepted;
     fd_set read_set, write_set;
     struct iperf_stream *sp;
-    struct timeval now;
-    struct timeval* timeout;
+    struct timespec now;
+    struct timespec* timeout;
 
     if (test->affinity != -1) 
 	if (iperf_setaffinity(test, test->affinity) != 0)
@@ -492,9 +492,9 @@ iperf_run_server(struct iperf_test *test)
         memcpy(&read_set, &test->read_set, sizeof(fd_set));
         memcpy(&write_set, &test->write_set, sizeof(fd_set));
 
-	(void) gettimeofday(&now, NULL);
+	(void) clock_gettime(CLOCK_MONOTONIC, &now);
 	timeout = tmr_timeout(&now);
-        result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
+        result = pselect(test->max_fd + 1, &read_set, &write_set, NULL, timeout, NULL);
         if (result < 0 && errno != EINTR) {
 	    cleanup_server(test);
             i_errno = IESELECT;
@@ -664,9 +664,9 @@ iperf_run_server(struct iperf_test *test)
         }
 
 	if (result == 0 ||
-	    (timeout != NULL && timeout->tv_sec == 0 && timeout->tv_usec == 0)) {
+	    (timeout != NULL && timeout->tv_sec == 0 && timeout->tv_nsec == 0)) {
 	    /* Run the timers. */
-	    (void) gettimeofday(&now, NULL);
+	    (void) clock_gettime(CLOCK_MONOTONIC, &now);
 	    tmr_run(&now);
 	}
     }

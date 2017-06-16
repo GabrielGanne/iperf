@@ -1179,7 +1179,7 @@ iperf_set_send_state(struct iperf_test *test, signed char state)
 }
 
 void
-iperf_check_throttle(struct iperf_stream *sp, struct timeval *nowP)
+iperf_check_throttle(struct iperf_stream *sp, struct timespec *nowP)
 {
     double seconds;
     uint64_t bits_per_second;
@@ -1202,7 +1202,7 @@ iperf_send(struct iperf_test *test, fd_set *write_setP)
 {
     register int multisend, r, streams_active;
     register struct iperf_stream *sp;
-    struct timeval now;
+    struct timespec now;
 
     /* Can we do multisend mode? */
     if (test->settings->burst != 0)
@@ -1214,7 +1214,7 @@ iperf_send(struct iperf_test *test, fd_set *write_setP)
 
     for (; multisend > 0; --multisend) {
 	if (test->settings->rate != 0 && test->settings->burst == 0)
-	    gettimeofday(&now, NULL);
+	    clock_gettime(CLOCK_MONOTONIC, &now);
 	streams_active = 0;
 	SLIST_FOREACH(sp, &test->streams, streams) {
 	    if ((sp->green_light &&
@@ -1240,7 +1240,7 @@ iperf_send(struct iperf_test *test, fd_set *write_setP)
 	    break;
     }
     if (test->settings->burst != 0) {
-	gettimeofday(&now, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &now);
 	SLIST_FOREACH(sp, &test->streams, streams)
 	    iperf_check_throttle(sp, &now);
     }
@@ -1276,7 +1276,7 @@ iperf_recv(struct iperf_test *test, fd_set *read_setP)
 int
 iperf_init_test(struct iperf_test *test)
 {
-    struct timeval now;
+    struct timespec now;
     struct iperf_stream *sp;
 
     if (test->protocol->init) {
@@ -1285,7 +1285,7 @@ iperf_init_test(struct iperf_test *test)
     }
 
     /* Init each stream. */
-    if (gettimeofday(&now, NULL) < 0) {
+    if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) {
 	i_errno = IEINITTEST;
 	return -1;
     }
@@ -1300,7 +1300,7 @@ iperf_init_test(struct iperf_test *test)
 }
 
 static void
-send_timer_proc(TimerClientData client_data, struct timeval *nowP)
+send_timer_proc(TimerClientData client_data, struct timespec *nowP)
 {
     struct iperf_stream *sp = client_data.p;
 
@@ -1314,11 +1314,11 @@ send_timer_proc(TimerClientData client_data, struct timeval *nowP)
 int
 iperf_create_send_timers(struct iperf_test * test)
 {
-    struct timeval now;
+    struct timespec now;
     struct iperf_stream *sp;
     TimerClientData cd;
 
-    if (gettimeofday(&now, NULL) < 0) {
+    if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) {
 	i_errno = IEINITTEST;
 	return -1;
     }
@@ -1327,7 +1327,7 @@ iperf_create_send_timers(struct iperf_test * test)
 	if (test->settings->rate != 0) {
 	    cd.p = sp;
 	    /* (Repeat every millisecond - arbitrary value to provide smooth pacing.) */
-	    sp->send_timer = tmr_create((struct timeval*) 0, send_timer_proc, cd, test->settings->pacing_timer, 1);
+	    sp->send_timer = tmr_create((struct timespec*) 0, send_timer_proc, cd, test->settings->pacing_timer, 1);
 	    if (sp->send_timer == NULL) {
 		i_errno = IEINITTEST;
 		return -1;
@@ -2331,13 +2331,13 @@ iperf_reset_test(struct iperf_test *test)
 void
 iperf_reset_stats(struct iperf_test *test)
 {
-    struct timeval now;
+    struct timespec now;
     struct iperf_stream *sp;
     struct iperf_stream_result *rp;
 
     test->bytes_sent = 0;
     test->blocks_sent = 0;
-    gettimeofday(&now, NULL);
+    clock_gettime(CLOCK_MONOTONIC, &now);
     SLIST_FOREACH(sp, &test->streams, streams) {
 	sp->omitted_packet_count = sp->packet_count;
         sp->omitted_cnt_error = sp->cnt_error;
@@ -2380,12 +2380,12 @@ iperf_stats_callback(struct iperf_test *test)
 	irp = TAILQ_LAST(&rp->interval_results, irlisthead);
         /* result->end_time contains timestamp of previous interval */
         if ( irp != NULL ) /* not the 1st interval */
-            memcpy(&temp.interval_start_time, &rp->end_time, sizeof(struct timeval));
+            memcpy(&temp.interval_start_time, &rp->end_time, sizeof(struct timespec));
         else /* or use timestamp from beginning */
-            memcpy(&temp.interval_start_time, &rp->start_time, sizeof(struct timeval));
+            memcpy(&temp.interval_start_time, &rp->start_time, sizeof(struct timespec));
         /* now save time of end of this interval */
-        gettimeofday(&rp->end_time, NULL);
-        memcpy(&temp.interval_end_time, &rp->end_time, sizeof(struct timeval));
+        clock_gettime(CLOCK_MONOTONIC, &rp->end_time);
+        memcpy(&temp.interval_end_time, &rp->end_time, sizeof(struct timespec));
         temp.interval_duration = timeval_diff(&temp.interval_start_time, &temp.interval_end_time);
         //temp.interval_duration = timeval_diff(&temp.interval_start_time, &temp.interval_end_time);
 	if (test->protocol->id == Ptcp) {

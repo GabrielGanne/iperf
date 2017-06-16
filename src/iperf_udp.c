@@ -38,6 +38,7 @@
 #endif
 #include <sys/time.h>
 #include <sys/select.h>
+#include <time.h>
 
 #include "iperf.h"
 #include "iperf_api.h"
@@ -55,12 +56,12 @@
 int
 iperf_udp_recv(struct iperf_stream *sp)
 {
-    uint32_t  sec, usec;
+    uint32_t  sec, nsec;
     uint64_t  pcount;
     int       r;
     int       size = sp->settings->blksize;
     double    transit = 0, d = 0;
-    struct timeval sent_time, arrival_time;
+    struct timespec sent_time, arrival_time;
 
     r = Nread(sp->socket, sp->buffer, size, Pudp);
 
@@ -77,24 +78,24 @@ iperf_udp_recv(struct iperf_stream *sp)
 
     if (sp->test->udp_counters_64bit) {
 	memcpy(&sec, sp->buffer, sizeof(sec));
-	memcpy(&usec, sp->buffer+4, sizeof(usec));
+	memcpy(&nsec, sp->buffer+4, sizeof(nsec));
 	memcpy(&pcount, sp->buffer+8, sizeof(pcount));
 	sec = ntohl(sec);
-	usec = ntohl(usec);
+	nsec = ntohl(nsec);
 	pcount = be64toh(pcount);
 	sent_time.tv_sec = sec;
-	sent_time.tv_usec = usec;
+	sent_time.tv_nsec = nsec;
     }
     else {
 	uint32_t pc;
 	memcpy(&sec, sp->buffer, sizeof(sec));
-	memcpy(&usec, sp->buffer+4, sizeof(usec));
+	memcpy(&nsec, sp->buffer+4, sizeof(nsec));
 	memcpy(&pc, sp->buffer+8, sizeof(pc));
 	sec = ntohl(sec);
-	usec = ntohl(usec);
+	nsec = ntohl(nsec);
 	pcount = ntohl(pc);
 	sent_time.tv_sec = sec;
-	sent_time.tv_usec = usec;
+	sent_time.tv_nsec = nsec;
     }
 
     if (sp->test->debug)
@@ -155,7 +156,7 @@ iperf_udp_recv(struct iperf_stream *sp)
      * computation does not require knowing the round-trip
      * time.
      */
-    gettimeofday(&arrival_time, NULL);
+    clock_gettime(CLOCK_MONOTONIC, &arrival_time);
 
     transit = timeval_diff(&sent_time, &arrival_time);
     d = transit - sp->prev_transit;
@@ -177,36 +178,36 @@ iperf_udp_send(struct iperf_stream *sp)
 {
     int r;
     int       size = sp->settings->blksize;
-    struct timeval before;
+    struct timespec before;
 
-    gettimeofday(&before, 0);
+    clock_gettime(CLOCK_MONOTONIC, &before);
 
     ++sp->packet_count;
 
     if (sp->test->udp_counters_64bit) {
 
-	uint32_t  sec, usec;
+	uint32_t  sec, nsec;
 	uint64_t  pcount;
 
 	sec = htonl(before.tv_sec);
-	usec = htonl(before.tv_usec);
+	nsec = htonl(before.tv_nsec);
 	pcount = htobe64(sp->packet_count);
 	
 	memcpy(sp->buffer, &sec, sizeof(sec));
-	memcpy(sp->buffer+4, &usec, sizeof(usec));
+	memcpy(sp->buffer+4, &nsec, sizeof(nsec));
 	memcpy(sp->buffer+8, &pcount, sizeof(pcount));
 	
     }
     else {
 
-	uint32_t  sec, usec, pcount;
+	uint32_t  sec, nsec, pcount;
 
 	sec = htonl(before.tv_sec);
-	usec = htonl(before.tv_usec);
+	nsec = htonl(before.tv_nsec);
 	pcount = htonl(sp->packet_count);
 	
 	memcpy(sp->buffer, &sec, sizeof(sec));
-	memcpy(sp->buffer+4, &usec, sizeof(usec));
+	memcpy(sp->buffer+4, &nsec, sizeof(nsec));
 	memcpy(sp->buffer+8, &pcount, sizeof(pcount));
 	
     }
@@ -457,7 +458,7 @@ iperf_udp_connect(struct iperf_test *test)
 {
     int s, buf, sz;
 #ifdef SO_RCVTIMEO
-    struct timeval tv;
+    struct timespec tv;
 #endif
     int rc;
 
@@ -515,8 +516,8 @@ iperf_udp_connect(struct iperf_test *test)
 #ifdef SO_RCVTIMEO
     /* 30 sec timeout for a case when there is a network problem. */
     tv.tv_sec = 30;
-    tv.tv_usec = 0;
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+    tv.tv_nsec = 0;
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (struct timespec *)&tv, sizeof(struct timespec));
 #endif
 
     /*

@@ -131,31 +131,31 @@ is_closed(int fd)
 
 
 double
-timeval_to_double(struct timeval * tv)
+timeval_to_double(struct timespec * tv)
 {
     double d;
 
-    d = tv->tv_sec + tv->tv_usec / 1000000;
+    d = tv->tv_sec + tv->tv_nsec / 1000000000;
 
     return d;
 }
 
 int
-timeval_equals(struct timeval * tv0, struct timeval * tv1)
+timeval_equals(struct timespec * tv0, struct timespec * tv1)
 {
-    if ( tv0->tv_sec == tv1->tv_sec && tv0->tv_usec == tv1->tv_usec )
+    if ( tv0->tv_sec == tv1->tv_sec && tv0->tv_nsec == tv1->tv_nsec )
 	return 1;
     else
 	return 0;
 }
 
 double
-timeval_diff(struct timeval * tv0, struct timeval * tv1)
+timeval_diff(struct timespec * tv0, struct timespec * tv1)
 {
     double time1, time2;
     
-    time1 = tv0->tv_sec + (tv0->tv_usec / 1000000.0);
-    time2 = tv1->tv_sec + (tv1->tv_usec / 1000000.0);
+    time1 = tv0->tv_sec + (tv0->tv_nsec / 1000000000.0);
+    time2 = tv1->tv_sec + (tv1->tv_nsec / 1000000000.0);
 
     time1 = time1 - time2;
     if (time1 < 0)
@@ -190,11 +190,11 @@ delay(int64_t ns)
 int
 delay(int us)
 {
-    struct timeval tv;
+    struct timesepc tv;
 
     tv.tv_sec = 0;
-    tv.tv_usec = us;
-    (void) select(1, (fd_set *) 0, (fd_set *) 0, (fd_set *) 0, &tv);
+    tv.tv_nsec = us * 1000;
+    (void) pselect(1, (fd_set *) 0, (fd_set *) 0, (fd_set *) 0, &tv, NULL);
     return 1;
 }
 #endif
@@ -203,10 +203,10 @@ delay(int us)
 void
 cpu_util(double pcpu[3])
 {
-    static struct timeval last;
+    static struct timespec last;
     static clock_t clast;
     static struct rusage rlast;
-    struct timeval temp;
+    struct timespec temp;
     clock_t ctemp;
     struct rusage rtemp;
     double timediff;
@@ -214,24 +214,24 @@ cpu_util(double pcpu[3])
     double systemdiff;
 
     if (pcpu == NULL) {
-        gettimeofday(&last, NULL);
+        clock_gettime(CLOCK_MONOTONIC, &last);
         clast = clock();
 	getrusage(RUSAGE_SELF, &rlast);
         return;
     }
 
-    gettimeofday(&temp, NULL);
+    clock_gettime(CLOCK_MONOTONIC, &temp);
     ctemp = clock();
     getrusage(RUSAGE_SELF, &rtemp);
 
-    timediff = ((temp.tv_sec * 1000000.0 + temp.tv_usec) -
-                (last.tv_sec * 1000000.0 + last.tv_usec));
-    userdiff = ((rtemp.ru_utime.tv_sec * 1000000.0 + rtemp.ru_utime.tv_usec) -
-                (rlast.ru_utime.tv_sec * 1000000.0 + rlast.ru_utime.tv_usec));
-    systemdiff = ((rtemp.ru_stime.tv_sec * 1000000.0 + rtemp.ru_stime.tv_usec) -
-                  (rlast.ru_stime.tv_sec * 1000000.0 + rlast.ru_stime.tv_usec));
+    timediff = ((temp.tv_sec * 1000000000.0 + temp.tv_nsec) -
+                (last.tv_sec * 1000000000.0 + last.tv_nsec));
+    userdiff = ((rtemp.ru_utime.tv_sec * 1000000000.0 + rtemp.ru_utime.tv_usec) -
+                (rlast.ru_utime.tv_sec * 1000000000.0 + rlast.ru_utime.tv_usec));
+    systemdiff = ((rtemp.ru_stime.tv_sec * 1000000000.0 + rtemp.ru_stime.tv_usec) -
+                  (rlast.ru_stime.tv_sec * 1000000000.0 + rlast.ru_stime.tv_usec));
 
-    pcpu[0] = (((ctemp - clast) * 1000000.0 / CLOCKS_PER_SEC) / timediff) * 100;
+    pcpu[0] = (((ctemp - clast) * 1000000000.0 / CLOCKS_PER_SEC) / timediff) * 100;
     pcpu[1] = (userdiff / timediff) * 100;
     pcpu[2] = (systemdiff / timediff) * 100;
 }

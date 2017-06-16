@@ -145,7 +145,7 @@ get_snd_cwnd(struct iperf_interval_results *irp)
 
 /*************************************************************/
 /*
- * Return rtt in usec.
+ * Return rtt in nsec.
  */
 long
 get_rtt(struct iperf_interval_results *irp)
@@ -163,7 +163,7 @@ get_rtt(struct iperf_interval_results *irp)
 
 /*************************************************************/
 /*
- * Return rttvar in usec.
+ * Return rttvar in nsec.
  */
 long
 get_rttvar(struct iperf_interval_results *irp)

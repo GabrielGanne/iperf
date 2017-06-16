@@ -45,7 +45,7 @@ libiperf_la_SOURCES     = \
 iperf3_SOURCES          = main.c
 iperf3_CFLAGS           = -g
 iperf3_LDADD            = libiperf.la
-iperf3_LDFLAGS          = -g
+iperf3_LDFLAGS          = -g -lrt
 
 # Specify the sources and various flags for the profiled iperf binary. This
 # binary recompiles all the source files to make sure they are all profiled.

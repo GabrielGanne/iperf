@@ -37,11 +37,11 @@ void make_cookie(char *);
 
 int is_closed(int);
 
-double timeval_to_double(struct timeval *tv);
+double timeval_to_double(struct timespec *tv);
 
-int timeval_equals(struct timeval *tv0, struct timeval *tv1);
+int timeval_equals(struct timespec *tv0, struct timespec *tv1);
 
-double timeval_diff(struct timeval *tv0, struct timeval *tv1);
+double timeval_diff(struct timespec *tv0, struct timespec *tv1);
 
 int delay(int64_t ns);
 
